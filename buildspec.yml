@@ -10,7 +10,7 @@ environment_variables:
 phases:
   install:
     commands:
-      apt install jsonlint
+      apt-get install jsonlint
   build:
     commands:
       - echo "Validating base network template"
