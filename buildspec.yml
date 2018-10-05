@@ -10,7 +10,7 @@ environment_variables:
 phases:
   install:
     commands:
-      apt-get install jsonlint
+      pip install demjson
   build:
     commands:
       - echo "Validating base network template"
