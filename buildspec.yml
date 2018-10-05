@@ -1,0 +1,27 @@
+version: 0.1
+
+environment_variables:
+  plaintext:
+    CONFIG_FILES: |
+      config/prod.json
+      config/staging.json
+      config/qa.json
+      config/test.json
+phases:
+  install:
+    commands:
+      apt install jsonlint
+  build:
+    commands:
+      - echo "Validating base network template"
+      - |
+        aws cloudformation validate-template --template-body network.yml
+      - |
+        for conf in $CONFIG_FILES; do
+          echo "Validating CFN parameters config file $conf"
+          jsonlint -s $conf
+        done
+artifacts:
+  files:
+    - network.yml
+    - config/*.json

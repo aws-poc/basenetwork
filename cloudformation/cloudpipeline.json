@@ -1,0 +1,6 @@
+[
+  {
+    "ParameterKey": "ArtifactStoreS3Location",
+    "ParameterValue": "org_base_network"
+  }
+]
