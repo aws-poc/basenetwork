@@ -321,7 +321,7 @@ Resources:
             Name: BaseNetworkCFNTemplateArtifact
           Configuration:
             ProjectName:
-              Ref: ValidateBaseNetworkProject
+              Ref: BuildBaseNetworkProject
           RunOrder: 1
         -
           Name: CreateTestStack

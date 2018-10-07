@@ -15,7 +15,7 @@ phases:
     commands:
       - echo "Validating base network template"
       - |
-        aws cloudformation validate-template --template-body network.yml
+        aws cloudformation validate-template --template-body file://network.yml
       - |
         for conf in $CONFIG_FILES; do
           echo "Validating CFN parameters config file $conf"
