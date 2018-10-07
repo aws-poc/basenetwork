@@ -343,7 +343,7 @@ Resources:
             Capabilities: CAPABILITY_NAMED_IAM
             StackName:
               Fn::Sub: Test-${AWS::StackName}
-            TemplateConfiguration: BaseNetworkCFNTemplateArtifact::config/config-test.json
+            TemplateConfiguration: BaseNetworkCFNTemplateArtifact::config/test.json
             TemplatePath: BaseNetworkCFNTemplateArtifact::network.yml
           RunOrder: 2
         -
