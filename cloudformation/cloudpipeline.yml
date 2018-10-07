@@ -2,7 +2,7 @@ Description: Create a CodePipeline to include for base netowrk createion.
 
 Parameters:
   GitHubAuthToken:
-    Type: Strring
+    Type: String
     Description: Github Auth token.
   UATApprovalEmail:
     Type: String
@@ -14,11 +14,13 @@ Parameters:
     Description: Email address to which Prod approval should be sent
     AllowedPattern: "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)"
     ConstraintDescription: Must be a valid email address. (e.g. name@example.com)
-  ArtifactStoreS3Location:
-    Type: String
-    Description: Name of the S3 bucket to store CodePipeline artificat.
 
 Resources:
+  ArtifactS3Bucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub "${AWS::Region}-${AWS::StackName}"
   UATTopic:
     Type: "AWS::SNS::Topic"
     Properties:
@@ -68,8 +70,8 @@ Resources:
             - "s3:PutObject"
             - "s3:GetBucketPolicy"
             Resource:
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}/*
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}/*
           -
             Effect: "Allow"
             Action:
@@ -99,8 +101,10 @@ Resources:
             - "codebuild:StartBuild"
             - "codebuild:BatchGetBuilds"
             Resource:
-            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/BuildCopyCFN-${AWS::StackName}
-            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:build/BuildCopyCFN-${AWS::StackName}:*
+            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/BuildBaseNetwork-${AWS::StackName}
+            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:build/BuildBaseNetwork-${AWS::StackName}:*
+            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/ValidateBuildBaseNetwork-${AWS::StackName}
+            - Fn::Sub: arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:build/ValidateBuildBaseNetwork-${AWS::StackName}:*
           -
             Effect: "Allow"
             Action:
@@ -144,8 +148,8 @@ Resources:
             - "s3:GetObject"
             - "s3:ListBucket"
             Resource:
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}/*
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}/*
   CodeBuildRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -206,8 +210,8 @@ Resources:
             - "s3:ListBucket"
             Resource:
             - Fn::Sub: arn:aws:s3:::codepipeline-${AWS::Region}-*
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}/*
-            - Fn::Sub: arn:aws:s3:::${ArtifactStoreS3Location}
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}/*
+            - Fn::Sub: arn:aws:s3:::${AWS::Region}-${AWS::StackName}
   BuildBaseNetworkProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -217,9 +221,7 @@ Resources:
       ServiceRole:
         Fn::GetAtt: [ CodeBuildRole, Arn ]
       Artifacts:
-        Type: S3
-        Location:
-          Ref: ArtifactStoreS3Location
+        Type: CODEPIPELINE
         Name:
           Fn::Sub: BuildBaseNetwork-${AWS::StackName}
       Environment:
@@ -227,12 +229,7 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:2.7.12
       Source:
-        Location: https://github.com/aws-poc/basenetwork
-        Type: GITHUB
-        Auth:
-          Type: OAUTH
-          Resource:
-            Ref: GitHubAuthToken
+        Type: CODEPIPELINE
       TimeoutInMinutes: 15
       Tags:
       - Key: Name
@@ -248,9 +245,7 @@ Resources:
       ServiceRole:
         Fn::GetAtt: [ CodeBuildRole, Arn ]
       Artifacts:
-        Type: S3
-        Location:
-          Ref: ArtifactStoreS3Location
+        Type: CODEPIPELINE
         Name:
           Fn::Sub: ValidateBaseNetwork-${AWS::StackName}
       Environment:
@@ -258,13 +253,8 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/python:2.7.12
       Source:
-        Location: https://github.com/aws-poc/basenetwork
-        BuildSpec: test/buildspec_test.yml
-        Type: GITHUB
-        Auth:
-          Type: OAUTH
-          Resource:
-            Ref: GitHubAuthToken
+        Type: CODEPIPELINE
+        BuildSpec: test/buildspec-test.yml
       TimeoutInMinutes: 15
       Tags:
       - Key: Name
@@ -285,31 +275,34 @@ Resources:
         -
           Name: BaseNetworkCFNSource
           ActionTypeId:
+            Version: "1"
             Category: Source
-            Owner: AWS
-            Version: 1
-            Provider: CodeCommit
+            Owner: ThirdParty
+            Provider: GitHub
           OutputArtifacts:
           -
             Name: BaseNetworkCFNTemplateOutput
           Configuration:
-            BranchName: master
-            RepositoryName: basenetwork
+            OAuthToken: !Ref GitHubAuthToken
+            Branch: master
+            Repo: basenetwork
+            Owner: aws-poc
           RunOrder: 1
         -
           Name: TestArtifactSource
           ActionTypeId:
+            Version: "1"
             Category: Source
-            Owner: AWS
-            Version: 1
-            Provider: CodeCommit
+            Owner: ThirdParty
+            Provider: GitHub
           OutputArtifacts:
           -
             Name: TestArtifacts
           Configuration:
-            BranchName: master
-            RepositoryName:
-              Ref: basenetwork
+            OAuthToken: !Ref GitHubAuthToken
+            Branch: master
+            Repo: basenetwork
+            Owner: aws-poc
           RunOrder: 1
       -
         Name: Validate
@@ -350,7 +343,7 @@ Resources:
             Capabilities: CAPABILITY_NAMED_IAM
             StackName:
               Fn::Sub: Test-${AWS::StackName}
-            TemplateConfiguration: BaseNetworkCFNTemplateArtifact::conifg/config-test.json
+            TemplateConfiguration: BaseNetworkCFNTemplateArtifact::config/config-test.json
             TemplatePath: BaseNetworkCFNTemplateArtifact::network.yml
           RunOrder: 2
         -
@@ -508,5 +501,4 @@ Resources:
 
       ArtifactStore:
         Type: S3
-        Location:
-          Ref: ArtifactStoreS3Location
+        Location: !Sub "${AWS::Region}-${AWS::StackName}"
